@@ -1,0 +1,7 @@
+base_part 底座
+first_arm 大臂
+second_arm 小臂
+mtl为同时导出的材质纹理。
+
+test为电机，想测试一下creo的色彩能否正常显示。
+.mtl中Kd为材质的散射光，也就是rgb颜色。

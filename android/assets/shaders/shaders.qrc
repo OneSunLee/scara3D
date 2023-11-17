@@ -1,0 +1,14 @@
+<RCC>
+    <qresource prefix="/shaders">
+        <file>boundfragmentshader.glsl</file>
+        <file>boundvertexshader.glsl</file>
+        <file>fragmentshader.glsl</file>
+        <file>skyboxfragmentshader.glsl</file>
+        <file>skyboxvertexshader.glsl</file>
+        <file>terrainfragmentshader.glsl</file>
+        <file>terrainvertexshader.glsl</file>
+        <file>thumbnailfragmentshader.glsl</file>
+        <file>thumbnailvertexshader.glsl</file>
+        <file>vertexshader.glsl</file>
+    </qresource>
+</RCC>

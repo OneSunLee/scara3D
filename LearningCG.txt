@@ -1,0 +1,253 @@
+
+#矩阵的变换
+
+有三个坐标系，世界、眼睛、物体。
+1.世界。我们想要解决的问题，一般以世界坐标为固定不动的中心，物体在动，眼睛在动，这样符合我们的直觉；
+2.眼睛。眼睛就是显示器，按眼睛坐标系来显示画面；
+3.物体。物体是通过三维建模软件建模好的，它本身自带一个坐标系，保存成模型文件。
+坐标系的切换，做个转换的矩阵乘法就行。
+
+
+//vec4是一个点的齐次坐标
+//model（模型坐标系到世界坐标系）
+//view（世界坐标系到眼睛坐标系）
+//projection(深度近大远小的投影,xy坐标除以z，为了确定显示前后，所以z坐标+1除以z)
+
+glVertex3fv(glm::value_ptr(perspective_divide(projection*view*model*glm::vec4(a,1))));
+
+因此一个点，乘旋转平移矩阵（模型到世界的坐标系变换），然后再乘旋转平移矩阵（世界到眼睛的坐标系变换），然后再乘放缩矩阵（近大远小）
+计算得到的向量前两个分量就是屏幕上的坐标xy，z作为前后判定。
+
+perspective_divide 获得的坐标是个齐次坐标，还有个坐标的第四个分量，除以它为1，取前三个分量才是最终坐标。
+value_ptr是获取首地址，相当于将矩阵glm::mat转成数据float[3]
+glVertex3fv绘制点
+
+取前两个xy就是显示屏上的坐标。
+
+个人：
+“裁剪空间”是什么
+
+##模型坐标系到世界坐标系
+glm::mat4x4 model(1);//这个1的意思是单元矩阵，这个是它的构造函数的规定
+
+这个转换矩阵就是模型坐标系在世界坐标系中的位置，包含三个角度和原点的三维坐标。
+对模型矩阵乘以平移矩阵和旋转矩阵，我们就能改变模型的位置和角度。
+比如我们想让模型A齿轮绕模型B轴旋转，这里模型B不动。
+这里我们就有三个坐标系，世界、模型A、模型B。
+已知：我们现在有一个点P在齿轮A中的坐标，齿轮A和轴B模型坐标系与世界坐标系的转换矩阵。
+求：我们将齿轮A套在轴B上，求出此时点P的世界坐标，然后点A在齿轮A旋转某个给定角度后的世界坐标。
+解：其实我们的关注点不在A上，而在计算新的model矩阵上。
+第一步，我们将模型A的旋转平移后，将模型A的孔套到模型B轴上；
+这里我们要求的就是模型A新的模型坐标系位置，即新的model矩阵。
+第二步，旋转模型A。
+这里我们要求的还是模型A新的模型坐标系位置。
+
+具体数学：
+假定模型的坐标系到世界坐标系转换矩阵是A_M,B_M，根据题设为已知量。
+第一步：
+1模型A上建立旋转轴的坐标系A_R（旋转轴到模型的转换矩阵），该坐标系的Z轴是旋转轴，再选一个好用的XY轴，后面能和模型B上的旋转轴坐标系B_R能对上。
+2同样模型B上也建立旋转轴的坐标系B_R。
+3模型A平移旋转让A和B的旋转轴坐标系重合，得到新的A_M：
+A_M=(B_R_tranverse)*(B_M_tranverse)*(A_R_tranverse)*A_M
+这个式子是一直左乘，为了理解要从右向左看。
+
+我如何得到这个式子：
+A_M*P=点P的世界坐标
+我们换个理解，把这一步看作将挪动模型A让它的坐标原点挪到世界坐标的坐标原点上，这里比较抽象，不用硬理解。
+因此A_M式中，模型A到世界，模型A到A旋转轴，世界到模型B,模型B到B旋转轴，第一个是A_M,后面三个和定义是反的，所以加逆。
+
+第二步：先把旋转轴平移到世界坐标Z轴，旋转，再移回去。
+模型A到世界，模型A到A旋转轴，旋转，A旋转轴到模型A，世界到模型A。
+A_M=A_M_tranverse*A_R*Rotate(alpha)*A_R_tranverse*A_M
+
+gl也提供平移旋转放缩矩阵的函数
+model=glm::translate(model,
+    glm::vec3(0.0f,0.12f*glm::sin(glm::radians(angle)*2.718f),0.0f));
+model=glm::rotate(model,glm::radians(angle),glm::vec3(0.0f,1.0f,0.0f));
+model=glm::scale(model,glm::vec3(0.7f));
+
+
+##眼睛的坐标系
+以眼睛到目标点为z轴，然后z轴叉乘世界坐标系的world_z轴获得x轴，z轴和x轴叉乘获得y轴。
+简单记就是，z轴眼睛向前（视线），x轴平行于地面（左边），y轴垂直于前两个（头顶）。
+
+glm::vec3 eye(0,0,5);//视线方向
+glm::vec3 center(0,0,0);//世界坐标中心
+glm::vec3 up(0,1,0);//世界坐标y轴
+glm::mat4x4 view = glm::lookAt(eye,center,up);
+
+##投影矩阵projection##
+眼睛实现通过显示屏形成一个四棱锥，截取一段深度形成梯台，梯台中内容被显示。眼睛到显示屏这一段东西不显示，
+确定一个梯台，需要眼睛视野的角度、视野宽高比、最近深度、最远深度
+    int width, height;
+    glfwGetWindowSize(window,&width，&height);
+    glm::mat4x4 projection = glm::perspective(glm::radians(40.0f),(float)width/height,0.01f,100.0f)
+    利用perspective计算投影矩阵。
+
+视角大小经验上一般是30-40度，是高度方向上的视角（你也可以取成长度方向上的，公式要调整调整）。
+点的坐标除以深度z值，这个梯台就被变换为一个长方体。
+但是深度坐标z除以z，就全部等于1了，我们的长方体就没深度了，我们还需要z值呢。
+显示窗口是二维，xy用来确定显示位置就够了，但我们需要z用来判断前后位置关系。
+因此处理方法是z+1/z。你会想了，这里的z就不是成比例放缩了，不对吧，但注意z轴后面仅用来判断前后位置关系，所以变换结果没按直线比例放缩没关系。
+
+
+##opengl到显示器上的坐标
+等等，上一步的工作明显还没讲完，我们perspective的四个参数还没用，前面投影后的坐标到显示器上还需要一步。
+opengl的显示器坐标系范围是x-1到+1，y-1到+1，z-1到+1，是个正方体。
+梯台乘以投影矩阵得到的是给定长宽比的长方体，opengl是正方体，显示器是给定长宽比的长方形。
+长方体=>正方体=>长方形（z用来确定前后关系）
+前一个=>是我们来完成的，后一个=>是由opengl来完成的。
+投影前的长方体我们就可以用perspective的四个参数，归一化送给opengl：最小最大深度为z的范围，视角大小为y的范围（因为已经除过z），y的范围和长宽比获得x的范围，。这步的工作也属于perspective。
+
+
+---------
+从
+std::vector<glm::vec3> vertices;
+std::vector<glm:uvec3> faces;
+升级成
+std::vector<glm::vec3> vertices;//顶点
+std::vector<glm::vec2> uvs;//纹理
+std::vector<glm::vec3> normals;//法线
+std::vector<glm::umat3x3> faces;//面
+
+---
+obj文件
+###例1
+f 1/1/1 5/5/1 7/9/1 3/3/1
+意思是f面的四个点，第一个点的坐标是v第一行，第一个点的纹理（颜色）是vt第一行，顶点的法线是vn第一行，第二个点。。。。
+可以看到面各点的法线都是数据是一样的，面法线和顶点法线，等会讲。
+###例2
+vt  0.259949 0.746995 0.000000
+纹理数据是二维的，第三个值为0，纹理是张图片，然后坐标值就是在纹理图片上的对应位置的颜色,x值范围0到1，y值0到1。
+###例3
+g 78
+usemtl MTL1
+f 2251/2251/2251  364/364/364  366/366/366
+f 2251/2251/2251  459/459/459  364/364/364
+f 2289/2289/2289  2252/2252/2252  367/367/367
+g是面组
+MTL1是obj文件带了个mtl文件，文件中MTL1材料会给出一些材质信息，比如布料和金属对光的反射就不一样。
+组中有三个面，每个面都是三角形。
+###mtl文件
+newmtl MTL1
+Kd 0.635 0.686 0.749
+//Kd是漫反射的rgb颜色
+map_Kd -option filename
+//给MTL1材质添加贴图文件
+---
+我们假设f是三角形，一行f数据读取后存在face里，代表一个面的信息。
+点abc的数据
+a_pos=vertices.at(face[0][0]);//坐标向量
+b_pos=vertices.at(face[1][0]);
+c_pos=vertices.at(face[2][0]);
+a_uv=uv.at(face[0][1]);//纹理向量
+b_uv=uv.at(face[1][1]);
+c_uv=uv.at(face[2][1]);
+a_norm=normals.at(face[0][1]);//法线向量
+b_norm=normals.at(face[1][1]);
+c_norm=normals.at(face[2][1]);
+法线是用于光照光追的渲染效果，表示内外。
+
+----
+法线也分为顶点法线和面法线两种存储方式。
+顶点法线就是周围多个面的法线平均。
+然后面内每个点法线就可以通过顶点法线插值求出。
+
+球体和曲面就会采用顶点法线。
+平直面就会采用面法线。
+
+
+已知所有面法线，求所有顶点法线。
+就可以先给所以顶点法线清零，然后遍历面，将面法线值加给所有顶点上，然后遍历顶点，进行归一化。
+为了更准确，面法线的值还可以按夹角进行加权加在顶点上。
+
+
+OBJ格式采用了混合法线。平面用面法线，曲面用顶点法线插值，这种像圆柱这种边沿就会比较好解决。
+
+当model矩阵平移时，不影响法线矢量。
+当model矩阵旋转时，若变换矩阵为R，法线矢量跟着转，乘以R。
+当model矩阵放缩时，若变换矩阵为S，法线矢量乘以S^{-1}。
+当model矩阵不仅有旋转，还有缩放，（还有平移时，）若变换矩阵为M，法线矢量要乘以(M^{-1})^{T}。
+GLnormal3fv(glm::value_ptr(glm::transpose(glm::inverse(glm::mat3x3(view*model)))*a_norm));
+-----
+设定要传到opengl的顶点的数据。
+glVertex3f(v)
+glTexCoord2f(v)
+glNormalf(v)
+
+------
+半透明的物体要从后向前画
+透明的物体随便画
+----
+抗锯齿
+最原始但也是效果最好的技术，屏幕分辨率四倍超采样。但是计算量也大了4倍以上。
+SSAA深度缓冲和颜色缓冲同时放大4倍（长宽各2）。
+MSAA只有深度缓冲区放大4倍。计算量减小，主要是边缘处物体本身颜色就和后景颜色加权
+（根据边缘上超采样的四个点有多少个点在物体上，透明度为25%/50%/75%）了，让边缘更圆滑。聪明的算法。
+现在的GPU会生成一个非常低分辨率的纹理，加权再算到边缘上去，解决了MSAA边缘上的纹理缺失问题，叫mipmap技术。
+
+//enable 4x MSAA
+glfwWindowHint(GLFW_SAMPLES, 4);
+//enable fullscreen
+glfwSetWindowMonitor(window,monitor,0,0,mode->width,mode->height,mode->refreshRate);
+可以通过github搜索以上函数查看相关代码用例。
+---
+CHECK_gl(glEnable(GL_MULTISAMPLE))//MSAA
+glEnable(GL_DEPTHTEST)//深度检测，保证前后顺序，重要
+可以一会儿开，一会儿关
+---
+古代OpenGL提供的加载view*model
+glm::mat4x4 modelview=view*model;//我们的矩阵
+glMatrixMode(GL_MODEVIEW);//告诉opengl要加载什么到GPU管线上
+glLoadMatrixf(&modelviewdf[0][0]);//加载
+
+同样，projection
+glMatrixMode(GL_PROJECTION);//告诉opengl要加载什么到GPU管线上
+glLoadMatrixf(glm::value_ptr(projection));//加载
+
+当我们传入的modelview矩阵是包含放缩操作的，会自动给我们的法线数据去乘一个view*model的
+逆转置去平衡model的放缩矩阵，但是它忘了给得到的齐次坐标做归一化，导致法线被放缩(依然是原方向)。
+影响是光照明暗会收到影响，因此我们需要：
+CHECK_GL(glEnable(GL_NORMALIZE));//古代版Opengl，这样它就会记得做归一化。
+
+
+如果没有法线数据，我们也可以用glm自己写一个计算法线的函数
+auto const &a=vectices.at(faces[0][0]);//a会不会因为是const捕获吧到？
+auto norm =[a,b,c]()->glm::vec3
+{
+    glm::vec3 ab=b-a;
+    glm::vec3 ac=c-a;
+    return glm::normalize(glm::cross(ab,ac));//注意正反
+}
+glNormal3fv(glm::value_ptr(norm()));
+---
+法线要求朝外，从外面看，面上的顶点顺序是逆时针，因此AB*AC就是我们要的方向。
+面剔除功能，将顺时针的面（朝里的面，物体背面的面）剔除掉进行渲染。
+CHECK_GL(glEnable(GL_CULL_FACE));//面剔除
+CHECK_GL(GLcCullFace(GL_BACK));
+CHECK_GL(glFrontFace(GL_CCW));
+---
+古代OpenGL启用平滑渲染模式
+glShadeModel(GL_SMOOTH);//平滑渲染模式,顶点法线模式，法线指定3次
+glShadModel(GL_FLAT);//平直渲染模式，面法线模式，法线指定1次
+void OBJ::draw_obj(bool isFlat)
+{
+    CHECK_GL(glShadeModel(isFlat?GL_FLAT:GL_SMOOTH));
+}
+如果没有法线数据,
+平直渲染模式就我们自己刚才写的那个求法线的函数;
+平滑渲染模式就先求出所有面的法线，再用刚才说的遍历，将面上的法线给每个顶点按夹角加上去。
+
+---
+m_private->mokey.draw_obj(true);
+---
+环绕模式，修正上矢量，解决转着转着，头就歪了。
+
+---
+CHECK_GL(glClearcOLOR(0.1f,0.1f,0.1f,0.0f));//搞一个背景颜色
+CHECK_GL(glClear(GL_DEPTH_BUFFER_BIT|GL_COLOR_BUFFER_BIT));//清空屏幕函数，不然拖影会一直有
+2023年9月28日18:09:38
+update2023年11月11日19:05:59
+
+
+

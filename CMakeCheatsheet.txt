@@ -1,0 +1,32 @@
+
+cmake_minimum_required(VERSION x.xx)
+#set(PROJ_NAME test)
+project(${PROJ_NAME})
+
+#set(SRC a.cpp b.cpp c.cpp)
+#aux_source_directory(${PROJECT_SOURCE}/src SRC)
+#能加后缀
+file(GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+
+#添加一个文件组，把自己想归在一起的文件放一起，但实际目录随意。
+source_group("include" FILES ${INCLUDE_FILES})
+
+#set(EXECUTABLE_OUTPUT_PATH /home/user_name/my_project)
+#头文件.h.cpp目录
+include_directories(${PROJECT_SOURCE_DIR}/include)
+#添加子目录，子目录中也可以有CMakeLists.txt，实现嵌套
+add_subdirectory(asset)
+#set(CMAKE_CXX_STADAR 11)
+#链接一个名叫calc的静态库，calc名字前后库特定的前后缀可以不加，为了跨平台
+link_libraries(calc)
+#链接文件所在的目录，方便找到静态库
+link_directories(${CMAKE_CURRENT_BINARY_DIR}/lib1)
+#链接文件所在的目录，方便找到动态库
+link_directories(${CMAKE_CURRENT_BINARY_DIR}/lib2)
+#编译SRC给的所有文件，生成app.exe
+add_executable(app $SRC)
+#编译生成动态库
+#add_library(calc_shared SHARED ${SRC})
+#链接名叫calc_shared的动态库，app.exe要已经存在，所以在上一行之后
+target_link_libraries(app calc_shared)
+#target_link_libraries和link_libraries都可以链接动态和静态库。

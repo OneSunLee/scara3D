@@ -1,0 +1,91 @@
+#MTL文件的导入问题#
+
+由于Creo渲染的时候我们没搞什么材质属性，所以只有Kd属性。
+.mtl中Kd为材质的散射光，也就是rgb颜色。
+
+参考https://blog.csdn.net/manipu1a/article/details/85340045
+关于mtl的文章
+
+Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene) {
+    std::vector<Vertex> vertices;
+    std::vector<unsigned int> indices;
+    std::vector<Texture> textures;
+
+    // Process vertices
+    for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
+        // Create placeholder vectors
+        glm::vec3 vertexPosition = glm::vec3(0.0f);
+        glm::vec3 vertexNormal = glm::vec3(0.0f);
+        glm::vec2 vertexTextureCoordinate = glm::vec2(0.0f);
+        glm::vec3 vertexTangent = glm::vec3(0.0f);
+        glm::vec3 vertexBitangent = glm::vec3(0.0f);
+        
+        // Process vertex position
+        vertexPosition.x = mesh->mVertices[i].x;
+        vertexPosition.y = mesh->mVertices[i].y;
+        vertexPosition.z = mesh->mVertices[i].z;
+
+        // Update boundary box
+        _boundBox.updateControlPoints(vertexPosition);
+
+        // Process vertex normals
+        if (mesh->mNormals) {
+            vertexNormal.x = mesh->mNormals[i].x;
+            vertexNormal.y = mesh->mNormals[i].y;
+            vertexNormal.z = mesh->mNormals[i].z;
+        }
+
+        // Process vertex texture coordinates
+        if (mesh->mTextureCoords[0]) {
+            // Process texture coordinates
+            vertexTextureCoordinate.x = mesh->mTextureCoords[0][i].x;
+            vertexTextureCoordinate.y = mesh->mTextureCoords[0][i].y;
+            
+            //// Process vertex tangents
+            //if (mesh->mTangents) {
+            //    vertexTangent.x = mesh->mTangents[i].x;
+            //    vertexTangent.y = mesh->mTangents[i].y;
+            //    vertexTangent.z = mesh->mTangents[i].z;
+            //}
+            //
+            //// Process vertex bitangents
+            //if (mesh->mBitangents) {
+            //    vertexBitangent.x = mesh->mBitangents[i].x;
+            //    vertexBitangent.y = mesh->mBitangents[i].y;
+            //    vertexBitangent.z = mesh->mBitangents[i].z;
+            //}
+        }
+        else {
+            vertexTextureCoordinate = glm::vec2(0.0f, 0.0f);
+        }
+
+        // Create new vertex
+        Vertex newVertex = {
+            vertexPosition,
+            vertexNormal,
+            vertexTextureCoordinate,
+            //vertexTangent,
+            //vertexBitangent
+        };
+
+        // Add vertex to vertices
+        vertices.push_back(newVertex);
+    }
+
+
+model
+    std::vector<Mesh> _meshes;
+    std::vector<Texture> _texturesLoaded;
+    Boundary _boundBox;
+
+
+mesh
+    std::vector<Vertex> _vertices;
+    std::vector<unsigned int> _indices;
+    std::vector<Texture> _textures;
+
+Vertex
+    glm::vec3 _position = glm::vec3(0.0f);
+    glm::vec3 _normal = glm::vec3(0.0f);
+    glm::vec2 _texCoords = glm::vec2(0.0f);
+

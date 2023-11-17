@@ -1,0 +1,1 @@
+STB is 图像解码库。stb_image is for loading image. (from github.com/nothings/stb)

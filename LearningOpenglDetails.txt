@@ -1,0 +1,39 @@
+#VAO, VBO, EBO#
+
+//https://www.cnblogs.com/kekec/p/16391957.html
+EBO 顶点索引信息，索引缓冲区对象，这个缓冲区主要用来存储顶点的索引信息。 
+VBO Vertex Buffer Object（顶点缓冲对象），顶点数据块，在显存中，可被GPU直接访问。
+VAO Vertex Array Object（顶点数组对象），在显存中，用来记录顶点属性（Vertex Attribute）和EBO的上下文信息。创建并绑定VAO后，后续的顶点属性调用都会储存在这个VAO中。
+
+比如我们的图形是四边形：所以有两个三角，四个顶点
+VBO的布局（顶点）：
+vertex1{{x,y,z},{r,g,b}},
+vertex2{{x,y,z},{r,g,b}},
+vertex3{{x,y,z},{r,g,b}},
+vertex4{{x,y,z},{r,g,b}}
+
+EBO布局（面）：
+0, 1, 3,  
+1, 2, 3 
+//前三个数字为三角1的顶点，后三个数字为三角2的顶点
+
+VAO布局：
+vectex1属性1指针
+vectex1属性2指针
+EBO
+
+有个函数用于VAO的赋值。
+glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3* sizeof(float)));
+比如第一个参数我们给1，让它代表颜色，color的属性位置值为1，注意这个1是我们自己给它给的
+第二、三个参数是颜色占3个float，第四是否希望被标准化（即0-1），
+第五是下一个点的数据要指针偏移多少，第六是vectex1该数据的指针位置在哪里，强转成了void*格式。
+VAO指针只存放了第一个点的指针，后面的点就按给定的偏移量，取第1个顶点，第2个顶点，第3个顶点的属性值。
+
+我们就发现VAO需要VBO的数据做支撑，需要绑定。
+unsigned int VAO;
+glGenVertexArrays(1, &VAO); //分配1个独一无二的id，并赋值给VAO
+glBindVertexArray(VAO); 
+glBindBuffer(GL_ARRAY_BUFFER, VBO);  // 把id为VBO绑定到GL_ARRAY_BUFFER类型的Buffer上
+---
+
+
